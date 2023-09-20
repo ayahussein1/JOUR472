@@ -1,0 +1,114 @@
+---
+title: "lab_02"
+author: "derek willis"
+date: "2023-09-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries and establish settings
+
+```{r}
+# Turn off scientific notation
+options(scipen=999)
+
+# Load the tidyverse. If you have not installed the tidyverse already, remove the # from the next line and run it first.  
+# install.packages('tidyverse')
+library(tidyverse)
+library(lubridate)
+```
+
+## Load Data
+
+Let's keep working with the UMD courses and Maryland campaign expense data we used in the pre_lab.
+
+```{r}
+umd_courses <- read_rds("data/umd_courses.rds")
+maryland_expenses <- read_csv("data/maryland_expenses.csv")
+```
+
+## Answer questions
+
+**Q1.** How many departments have offered the courses with "Climate" in the title and at least one seat? Which department has offered the most?
+**A1.** There are 26 departments that have courses with the word "Climate" in the title and at least one seat. Atmospheric and Oceanic Sciences has the most.
+
+```{r}
+umd_courses |> 
+  group_by(department) |> 
+  filter(str_detect(title, "Climate") & seats >= 1) |> 
+  summarize(
+    count_classes = n()
+  ) |> 
+arrange(desc(count_classes))
+```
+
+**Q2.** Of the departments listed in A2, which one is the most interesting to you, and why?
+**A2.** I'm surprised that Criminology and Criminal Justice have classes about climate.
+
+
+**Q3** Which departments have the most courses in the Fall 2023 term? And which departments in that term have at least one syllabus posted? How are the top five departments different in each result?
+
+**A3.** Economics and Biological Sciences is in the top five for having at least one syllabus but not in the top five for the most classes. English and Teaching and Learning are in the top five for most classes but not for syllabus. Business and Management, Music and Information Studies are in the top five for both.
+
+```{r}
+fall_classes <- umd_courses |> 
+  group_by(department) |> 
+  filter(term == 202308) |> 
+  summarize(
+    count_classes = n()
+  ) |> 
+arrange(desc(count_classes))  
+
+syllabus_fall <- umd_courses |> 
+  group_by(department) |> 
+  filter(term == 202308 & syllabus_count >= 1) |> 
+  summarize(
+    count_classes = n()
+  ) |> 
+arrange(desc(count_classes)) 
+```
+
+**Q4.** Using the Maryland campaign expenses data, change the datatype of the expenditure_date column so that it is a date and not a chr, saving the result as the same dataframe. Then create a new column for the month based on expenditure_date. Then write code that shows total amount spent each month by Wes Moore's committee (you'll need to search the data to find the exact name). Write a sentence describing the pattern of spending over time.
+**A4.** There doesn't seem to be an obvious pattern, it looks like they'll spend a lot of money over a 5-month period and then stop spending for a while.
+
+```{r}
+maryland_expenses <- maryland_expenses |> 
+  mutate(expenditure_date=mdy(expenditure_date)) |> 
+  mutate(month = floor_date(expenditure_date, "month")) |> 
+  group_by(month) |> 
+  summarize(total = sum(amount))
+```
+
+**Q5.** Using case_when(), create a column in the Maryland expenses data called `spending_location` indicating whether each record spent money in Maryland or outside Maryland. For records that are in Maryland, make the new column's value "In-state" and for the others, make it "Out of state". Then write code that shows the total amount of money spent in each category and describe the results. You can do this in one statement or break it up into two statements (saving the new column to your dataframe).
+**A5** For the in-state column, it's showing $7,772,3146 for the total, I was expecting to see a sum for the out-of-state column as well but it's showing NA and I'm not sure why.
+
+```{r}
+maryland_expenses_state <- maryland_expenses |> 
+  mutate(
+    spending_location = case_when(
+      str_detect(address, " Maryland ") ~ "In-state",
+      .default = "Out of state"
+    )
+  )
+maryland_expenses_state |>
+  group_by(spending_location) |>
+  summarize(total = sum(amount))
+  
+```
+
+
+**Q6.** Choose your own adventure: using either the UMD courses or campaign expenses data, ask and answer a question that is different than the previous ones. You can use one of the ones you provided in the pre_lab.
+**A6.** I'm answering a question from the pre-lab where I want to know which department has the most classes about race/diversity. Unsurprisingly, African American Studies has the most, along with Sociology and Teaching and Learning as close seconds. 
+
+```{r}
+umd_courses |> 
+  group_by(department) |> 
+  filter(str_detect(title, "Race") | str_detect(title, "Diversity")) |> 
+  summarize(
+    count_classes = n()
+  ) |> 
+arrange(desc(count_classes))
+```
